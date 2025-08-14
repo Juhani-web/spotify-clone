@@ -1,32 +1,36 @@
 import './App.css';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Box } from '@mui/material';
+import { Routes, Route } from 'react-router-dom';
+import { getAccessToken } from './utils/getAccessToken';
+import { getAccessTokenFromStorage } from './utils/getAccessTokenFromStorage';
 import Login from './pages/Login';
-import SpotifyCallback from './pages/SpotifyCallback';
 import Dashboard from './components/Dashboard/Dashboard';
-import ProtectedRoute from './components/ProtectedRoute';
-import Home from './pages/Home';
-import Playlist from './pages/Playlist';
-import Library from './pages/Library';
 
 function App({ spotifyApi }) {
-  return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/callback" element={<SpotifyCallback />} />
-      
-      <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <Dashboard spotifyApi={spotifyApi} />
-        </ProtectedRoute>
-      }>
-        <Route index element={<Home />} />
-        <Route path="playlist/:id" element={<Playlist spotifyApi={spotifyApi} />} />
-        <Route path="library" element={<Library spotifyApi={spotifyApi} />} />
-      </Route>
+	const [token, setToken] = useState(getAccessTokenFromStorage());
 
-      <Route path="*" element={<Navigate to="/dashboard" />} />
-    </Routes>
-  );
+useEffect (() => {
+	const accessToken = getAccessTokenFromStorage() || getAccessToken();
+	if(accessToken) {
+
+		setToken(accessToken);
+		sessionStorage.setItem(' spotifyToken', accessToken);
+		window.location.hash = '';
+	}
+}, []);
+
+	return (
+		<Box className="App">
+			{ token ? <Dashboard spotifyApi={spotifyApi} /> : (
+				<Routes>
+					<Route path="*" element={ <Login /> }/>
+				</Routes>
+			)}
+      
+      
+		</Box>
+	);
 }
 
 export default App;

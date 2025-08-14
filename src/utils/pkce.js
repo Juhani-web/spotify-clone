@@ -34,7 +34,7 @@ export const getToken = async (code) => {
 			client_id: clientId,
 			grant_type: 'authorization_code',
 			code,
-			redirect_uri: 'http://127.0.0.1:5173/callback/',
+			redirect_uri: 'http://127.0.0.1:5173/callback',
 			code_verifier: codeVerifier
 		})
 	};

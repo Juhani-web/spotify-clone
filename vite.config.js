@@ -1,19 +1,16 @@
 // vite.config.ts
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-
-  // Make the dev server listen on every loop-back interface,
-  // so http://127.0.0.1:<port> works in addition to localhost.
   server: {
-    host: true,      // equivalent to '0.0.0.0'
+    host: '127.0.0.1', // Kör endast på 127.0.0.1 (inte localhost)
+    port: 5173,        // Valfri: sätt en fast port
   },
-
-  // Same setting for `vite preview` (optional but handy)
   preview: {
-    host: true,
+    host: '127.0.0.1', // Samma sak för vite preview
+    port: 4173,        // Standard preview-port (valfri)
   },
-})
+});
