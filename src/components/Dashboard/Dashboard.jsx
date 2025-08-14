@@ -1,5 +1,4 @@
-import React from 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box } from '@mui/material';
 import { Routes, Route } from 'react-router-dom';
 import Home from '../../pages/Home';
@@ -20,10 +19,7 @@ const Dashboard = ({ spotifyApi }) => {
 	}, []);
 
 	return (
-		<Box
-			sx={{
-			}}
-		>
+		<Box>
 			<Box sx={{ flex: 1, overflowY: 'auto', display: 'flex' }}>
 				<SideNav spotifyApi={spotifyApi} token={token} />
 				<Routes>

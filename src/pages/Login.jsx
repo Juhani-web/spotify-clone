@@ -17,7 +17,7 @@ export async function redirectToSpotifyAuth() {
     response_type: 'code',
     client_id: clientId,
     scope: scope,
-    redirect_uri:'http://127.0.0.1:5173/callback/',
+    redirect_uri:'http://127.0.0.1:5173/callback',
     code_challenge_method: 'S256',
     code_challenge: codeChallenge
   });
