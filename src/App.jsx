@@ -1,47 +1,37 @@
-import './App.css';
-import { useEffect, useState } from 'react';
-import { Box } from '@mui/material';
-import { Routes, Route, useNavigate } from 'react-router-dom';
-import { getAccessToken } from './utils/getAccessToken';
-import { getAccessTokenFromStorage } from './utils/getAccessTokenFromStorage';
-import Login from './pages/Login';
-import Dashboard from './components/Dashboard/Dashboard';
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import SpotifyWebApi from "spotify-web-api-js";
+import Login from "./pages/Login";
+import SpotifyCallback from "./pages/Callback";
+import Dashboard from "./pages/Dashboard";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Home from "./pages/Home";
+import Playlist from "./pages/Playlist";
+import Library from "./pages/Library";
 
-function App({ spotifyApi }) {
-    const [token, setToken] = useState(getAccessTokenFromStorage());
-    const navigate = useNavigate();
+function App() {
+  const spotifyApi = new SpotifyWebApi();
 
-    useEffect(() => {
-        // Kolla om token redan finns i storage
-        let accessToken = getAccessTokenFromStorage();
-
-        // Om ingen token, försök läsa från URL-hash (första gången man loggar in)
-        if (!accessToken) {
-            accessToken = getAccessToken();
-            if (accessToken) {
-                sessionStorage.setItem('spotifyToken', accessToken); // fixa mellanslagsbuggen
-                window.location.hash = ''; // rensa URL:en från token
-            }
-        }
-
-        // Om vi har token → sätt state och navigera till Home
-        if (accessToken) {
-            setToken(accessToken);
-            navigate('/');
-        }
-    }, [navigate]);
-
-    return (
-        <Box className="App">
-            {token ? (
-                <Dashboard spotifyApi={spotifyApi} />
-            ) : (
-                <Routes>
-                    <Route path="*" element={<Login />} />
-                </Routes>
-            )}
-        </Box>
-    );
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/callback" element={<SpotifyCallback />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard spotifyApi={spotifyApi} />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Home />} />
+          <Route path="playlist/:id" element={<Playlist spotifyApi={spotifyApi} />} />
+          <Route path="library" element={<Library spotifyApi={spotifyApi} />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/dashboard" />} />
+      </Routes>
+    </Router>
+  );
 }
 
 export default App;
