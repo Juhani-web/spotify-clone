@@ -1,25 +1,39 @@
+// src/pages/Dashboard.jsx
 import { useEffect, useState } from "react";
 import { Box } from "@mui/material";
 import { Outlet } from "react-router-dom";
 import SideNav from "../components/SideNav";
 import Player from "../components/Player";
 import { getAccessTokenFromStorage } from "../utils/getAccessTokenFromStorage";
+import { refreshAccessToken } from "../utils/pkce";
 
 const Dashboard = ({ spotifyApi }) => {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Hämta token från storage (sessionStorage)
-    const storedToken = getAccessTokenFromStorage();
+    const checkToken = async () => {
+      let storedToken = getAccessTokenFromStorage();
+      const expiresAt = sessionStorage.getItem("expiresAt");
 
-    if (storedToken) {
-      spotifyApi.setAccessToken(storedToken);
-      setToken(storedToken);
+      // ⚠️ Token saknas eller har gått ut → försök förnya
+      if (!storedToken || (expiresAt && Date.now() > parseInt(expiresAt, 10))) {
+        console.warn("🔄 Access token saknas eller har gått ut, försöker förnya...");
+        storedToken = await refreshAccessToken();
+      }
+
+      if (storedToken) {
+        console.log("✅ Token satt i Dashboard:", storedToken.substring(0, 15) + "...");
+        spotifyApi.setAccessToken(storedToken);
+        setToken(storedToken);
+      } else {
+        console.error("❌ Kunde inte sätta token i Dashboard");
+      }
+
       setIsLoading(false);
-    } else {
-      setIsLoading(false);
-    }
+    };
+
+    checkToken();
   }, [spotifyApi]);
 
   return (
@@ -34,7 +48,7 @@ const Dashboard = ({ spotifyApi }) => {
       {/* Main layout */}
       <Box sx={{ flex: 1, overflow: "auto", display: "flex" }}>
         <SideNav spotifyApi={spotifyApi} token={token} />
-        <Outlet /> {/* Här laddas Home, Library, Playlist etc */}
+        <Outlet />
       </Box>
 
       {/* Player visas bara om token finns och laddning är klar */}

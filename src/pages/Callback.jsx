@@ -12,16 +12,17 @@ const SpotifyCallback = () => {
       const code = params.get("code");
 
       if (!code) {
-        console.error("Ingen authorization code i URL");
+        console.error("❌ Ingen authorization code i URL");
         return;
       }
 
       const accessToken = await getToken(code);
 
       if (accessToken) {
-        navigate("/dashboard");
+        console.log("✅ Token sparad i storage:", accessToken.substring(0, 10) + "...");
+        navigate("/dashboard"); // Skicka användaren vidare
       } else {
-        console.error("Kunde inte hämta token");
+        console.error("❌ Kunde inte hämta token");
       }
     };
 
