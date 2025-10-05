@@ -1,8 +1,15 @@
-const Library = ({ spotifyApi }) => {
+import { Box, Typography } from "@mui/material";
+
+const Library = () => {
   return (
-    <div>
-      <h1>Library Page</h1>
-    </div>
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Bibliotek
+      </Typography>
+      <Typography variant="body1">
+        Här kan du se dina sparade låtar, album och artister.
+      </Typography>
+    </Box>
   );
 };
 

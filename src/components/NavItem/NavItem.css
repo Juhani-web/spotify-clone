@@ -1,0 +1,16 @@
+.NavLink {
+  color: #b3b3b3;
+}
+
+.NavLink.active {
+  color: white; /* text blir vit när aktiv */
+}
+
+.NavLink .nav-icon {
+  color: #b3b3b3;
+  transition: color 0.2s ease-in-out;
+}
+
+.NavLink.active .nav-icon {
+  color: #1db954; /* bara ikonen blir grön */
+}

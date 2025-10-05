@@ -1,6 +1,28 @@
+// src/utils/pkce.js
 const clientId = import.meta.env.VITE_CLIENT_ID;
 
-// 🔑 Första inloggningen: hämta access_token + refresh_token
+// 🔐 Generera en code_verifier (random string)
+export function generateCodeVerifier(length = 128) {
+  const possible =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+  let verifier = "";
+  for (let i = 0; i < length; i++) {
+    verifier += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return verifier;
+}
+
+// 🔐 Skapa en code_challenge (SHA-256 + base64-url)
+export async function generateCodeChallenge(codeVerifier) {
+  const data = new TextEncoder().encode(codeVerifier);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+// 🔑 Hämta nytt access token (första gången med authorization code)
 export const getToken = async (code) => {
   const codeVerifier = localStorage.getItem("code_verifier");
   const url = "https://accounts.spotify.com/api/token";
@@ -19,13 +41,13 @@ export const getToken = async (code) => {
 
   const body = await fetch(url, payload);
   const response = await body.json();
+
   console.log("🔑 Token Response:", response);
 
   if (response.access_token) {
     sessionStorage.setItem("spotifyToken", response.access_token);
     sessionStorage.setItem("expiresAt", Date.now() + response.expires_in * 1000);
 
-    // 👇 refresh_token måste sparas i localStorage
     if (response.refresh_token) {
       localStorage.setItem("refreshToken", response.refresh_token);
     }
@@ -58,30 +80,18 @@ export const refreshAccessToken = async () => {
     }),
   };
 
-  try {
-    const body = await fetch(url, payload);
-    const response = await body.json();
-    console.log("♻️ Refresh Response:", response);
+  const body = await fetch(url, payload);
+  const response = await body.json();
 
-    // ✅ Om Spotify returnerar nytt access_token
-    if (response.access_token) {
-      sessionStorage.setItem("spotifyToken", response.access_token);
-      sessionStorage.setItem("expiresAt", Date.now() + response.expires_in * 1000);
-      console.log("✅ Access token förnyad");
-      return response.access_token;
-    }
+  console.log("♻️ Refresh Response:", response);
 
-    // ⚠️ Om Spotify skickar error men vi har en giltig token kvar → använd den
-    const existingToken = sessionStorage.getItem("spotifyToken");
-    if (existingToken) {
-      console.warn("⚠️ Refresh misslyckades, använder befintligt token.");
-      return existingToken;
-    }
-
-    console.error("❌ Kunde inte förnya token:", response);
-    return null;
-  } catch (err) {
-    console.error("❌ Nätverksfel vid refresh:", err);
-    return sessionStorage.getItem("spotifyToken") || null;
+  if (response.access_token) {
+    sessionStorage.setItem("spotifyToken", response.access_token);
+    sessionStorage.setItem("expiresAt", Date.now() + response.expires_in * 1000);
+    console.log("✅ Access token förnyad");
+    return response.access_token;
   }
+
+  console.error("❌ Kunde inte förnya token:", response);
+  return null;
 };

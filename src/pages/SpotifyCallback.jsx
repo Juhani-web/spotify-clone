@@ -1,7 +1,7 @@
 // pages/SpotifyCallback.tsx
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getToken } from '../utils/pkce';
+import { getToken } from '../utils/pkce.js';
 
 const SpotifyCallback = () => {
   const navigate = useNavigate();

@@ -1,13 +1,32 @@
-// src/components/Player.jsx
+// src/components/Player/Player.jsx
 import { useEffect, useState } from "react";
 import { Box, Typography, IconButton } from "@mui/material";
 import { PlayArrow, Pause, SkipNext, SkipPrevious } from "@mui/icons-material";
+import { refreshAccessToken } from "../../utils/pkce.js";
 
 const Player = ({ spotifyApi }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [track, setTrack] = useState(null);
 
-  // Uppdatera låten när något ändras i sessionStorage (t.ex. klick i Playlist)
+  // 🔄 Hjälpfunktion: om 401 → prova förnya token och försök igen
+  const safeSpotifyCall = async (fn) => {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err.status === 401) {
+        console.warn("⚠️ Token verkar ha gått ut, försöker förnya...");
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          spotifyApi.setAccessToken(newToken);
+          console.log("✅ Ny token satt i Player");
+          return await fn();
+        }
+      }
+      console.error("❌ Fel i Spotify-anrop:", err);
+      throw err;
+    }
+  };
+
   useEffect(() => {
     const updateTrack = async () => {
       const trackUri = sessionStorage.getItem("currentTrackUri");
@@ -17,19 +36,18 @@ const Player = ({ spotifyApi }) => {
 
       try {
         if (contextUri) {
-          // Spela spellistan och börja på låten
-          await spotifyApi.play({
-            context_uri: contextUri,
-            offset: { uri: trackUri },
-          });
+          await safeSpotifyCall(() =>
+            spotifyApi.play({
+              context_uri: contextUri,
+              offset: { uri: trackUri },
+            })
+          );
         } else {
-          // Fallback: spela bara låten
-          await spotifyApi.play({ uris: [trackUri] });
+          await safeSpotifyCall(() => spotifyApi.play({ uris: [trackUri] }));
         }
 
-        // Hämta info om nuvarande låt
         const trackId = trackUri.split(":").pop();
-        const data = await spotifyApi.getTrack(trackId);
+        const data = await safeSpotifyCall(() => spotifyApi.getTrack(trackId));
         setTrack(data);
         setIsPlaying(true);
       } catch (err) {
@@ -39,54 +57,28 @@ const Player = ({ spotifyApi }) => {
 
     updateTrack();
 
-    // Lyssna på sessionStorage-förändringar
+    // lyssna på storage-event
     const handler = () => updateTrack();
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
   }, [spotifyApi]);
 
-  const handlePause = () => {
-    spotifyApi.pause().then(
-      () => setIsPlaying(false),
-      (err) => console.error("Fel vid pause:", err)
-    );
+  const handlePause = async () => {
+    await safeSpotifyCall(() => spotifyApi.pause());
+    setIsPlaying(false);
   };
 
   const handlePlay = async () => {
-    try {
-      await spotifyApi.play();
-      const current = await spotifyApi.getMyCurrentPlayingTrack();
-      if (current?.item) setTrack(current.item);
-      setIsPlaying(true);
-    } catch (err) {
-      console.error("Fel vid play:", err);
-    }
+    await safeSpotifyCall(() => spotifyApi.play());
+    setIsPlaying(true);
   };
 
   const handleNext = async () => {
-    try {
-      await spotifyApi.skipToNext();
-      const current = await spotifyApi.getMyCurrentPlayingTrack();
-      if (current?.item) {
-        setTrack(current.item);
-        setIsPlaying(true);
-      }
-    } catch (err) {
-      console.error("Fel vid next:", err);
-    }
+    await safeSpotifyCall(() => spotifyApi.skipToNext());
   };
 
   const handlePrev = async () => {
-    try {
-      await spotifyApi.skipToPrevious();
-      const current = await spotifyApi.getMyCurrentPlayingTrack();
-      if (current?.item) {
-        setTrack(current.item);
-        setIsPlaying(true);
-      }
-    } catch (err) {
-      console.error("Fel vid prev:", err);
-    }
+    await safeSpotifyCall(() => spotifyApi.skipToPrevious());
   };
 
   if (!track) {

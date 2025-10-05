@@ -1,7 +1,7 @@
 // src/pages/Login.jsx
 import React from "react";
 import { Box, Button } from "@mui/material";
-import { generateCodeVerifier, generateCodeChallenge } from "../utils/pkce";
+import { generateCodeVerifier, generateCodeChallenge } from "../utils/pkce.js";
 
 const clientId = import.meta.env.VITE_CLIENT_ID;
 const redirectUri = "http://127.0.0.1:5173/callback"; // samma som i Spotify Dashboard

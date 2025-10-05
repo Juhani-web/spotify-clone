@@ -1,88 +1,103 @@
 // src/pages/Playlist.jsx
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Box, Typography, List, ListItem, ListItemText } from "@mui/material";
+import { Avatar, Box, Typography } from '@mui/material';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 
-const Playlist = ({ spotifyApi }) => {
-  const { id } = useParams();
-  const [playlist, setPlaylist] = useState(null);
+const Playlist = ({ spotifyApi, token }) => {
+	const { id } = useParams();
+	const [songs, setSongs] = useState([]);
+	const [playlistInfo, setPlaylistInfo] = useState(null);
 
-  useEffect(() => {
-    if (!id) return;
+	const formatSongs = useCallback(
+		(items) =>
+			items.map((item, i) => {
+				console.log({ item, i });
+				const track = item;
+				track.contextUri = `spotify:playlist:${id}`;
+				track.position = i;
+				return track;
+			}),
+		[id]
+	);
 
-    const token = sessionStorage.getItem("spotifyToken");
-    if (!token) {
-      console.warn("⚠️ Ingen token hittad i sessionStorage");
-      return;
-    }
+	useEffect(() => {
+		const getData = async () => {
+			try {
+				const playlistDetails = await spotifyApi.getPlaylist(id);
+				setPlaylistInfo({
+					image: playlistDetails.body.images[0].url,
+					name: playlistDetails.body.name
+				});
+				console.log(playlistDetails);
+				const { items } = playlistDetails.body.tracks;
+				//format songs
+				const formattedSongs = formatSongs(items);
+				setSongs(formattedSongs);
+			} catch (err) {
+				console.error('❌ Kunde inte hämta playlist:', err);
+			}
+		};
 
-    // Säkerställ att Spotify-klienten har en giltig token
-    spotifyApi.setAccessToken(token);
+		getData();
+	}, [id, formatSongs]);
 
-    spotifyApi.getPlaylist(id).then(
-      (data) => {
-        setPlaylist(data);
-      },
-      (err) => {
-        console.error("❌ Fel vid hämtning av playlist:", err);
-      }
-    );
-  }, [id, spotifyApi]);
+	return (
+		<Box
+			id="Playlist__page"
+			sx={{
+				backgroundColor: 'background.paper',
+				flex: 1,
+				overflowY: 'auto'
+			}}
+		>
+			<Box
+				p={{ xs: 3, md: 4 }}
+				sx={{
+					width: '100%',
+					background: 'linear-gradient(180deg, #1db954 0%, #121212 100%)',
+					display: 'flex',
+					justifyContent: 'flex-start',
+					alignItems: { xs: 'flex-start', md: 'flex-end', xl: 'center' },
+					gap: 3,
+					boxSizing: 'border-box',
+					flexDirection: { xs: 'column', md: 'row' }
+				}}
+			>
+				<Avatar
+					src={playlistInfo?.image}
+					variant="square"
+					alt={playlistInfo?.name}
+					sx={{
+						boxShadow: 10,
+						width: { xs: '100%', md: 235 },
+						height: { xs: '100%', md: 235 }
+					}}
+				/>
 
-  if (!playlist) {
-    return <Typography variant="h6">Laddar spellista...</Typography>;
-  }
-
-  const handleTrackClick = async (track) => {
-    try {
-      // Spara i sessionStorage så Player kan hämta
-      sessionStorage.setItem("currentTrackUri", track.uri);
-      sessionStorage.setItem("currentContextUri", playlist.uri);
-
-      // Starta playback direkt
-      await spotifyApi.play({
-        context_uri: playlist.uri,
-        offset: { uri: track.uri },
-      });
-
-      // Trigga Player att uppdatera
-      window.dispatchEvent(new Event("storage"));
-    } catch (err) {
-      console.error("⚠️ Kunde inte spela låt:", err);
-    }
-  };
-
-  return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        {playlist.name}
-      </Typography>
-      <Typography variant="body2" color="text.secondary" gutterBottom>
-        {playlist.tracks.items.length} låtar
-      </Typography>
-
-      <List>
-        {playlist.tracks.items.map((item, index) => {
-          const track = item.track;
-          return (
-            <ListItem
-              key={index}
-              button
-              onClick={() => handleTrackClick(track)}
-              sx={{
-                "&:hover": { bgcolor: "grey.900" },
-              }}
-            >
-              <ListItemText
-                primary={track.name}
-                secondary={track.artists.map((a) => a.name).join(", ")}
-              />
-            </ListItem>
-          );
-        })}
-      </List>
-    </Box>
-  );
+				<Box>
+					<Typography
+						sx={{
+							fontSize: 12,
+							fontWeight: 'bold',
+							color: '#fff',
+							mb: 1
+						}}
+					>
+						Playlist
+					</Typography>
+					<Typography
+						sx={{
+							fontSize: { xs: 42, md: 72 },
+							fontWeight: 'bold',
+							color: '#fff'
+						}}
+					>
+						{playlistInfo?.name}
+					</Typography>
+				</Box>
+			</Box>
+		</Box>
+	);
 };
 
 export default Playlist;
