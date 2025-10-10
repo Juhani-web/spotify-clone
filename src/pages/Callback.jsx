@@ -7,27 +7,32 @@ const SpotifyCallback = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchToken = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
+  const hasRun = sessionStorage.getItem("callback_ran");
+  if (hasRun) return; // 🚫 hoppa över om redan kört
+  sessionStorage.setItem("callback_ran", "true");
 
-      if (!code) {
-        console.error("❌ Ingen authorization code i URL");
-        return;
-      }
+  const fetchToken = async () => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
 
-      const accessToken = await getToken(code);
+    if (!code) {
+      console.error("❌ Ingen authorization code i URL");
+      return;
+    }
 
-      if (accessToken) {
-        console.log("✅ Token sparad i storage:", accessToken.substring(0, 10) + "...");
-        navigate("/dashboard"); // Skicka användaren vidare
-      } else {
-        console.error("❌ Kunde inte hämta token");
-      }
-    };
+    const accessToken = await getToken(code);
 
-    fetchToken();
-  }, [navigate]);
+    if (accessToken) {
+      console.log("✅ Token sparad i storage:", accessToken.substring(0, 10) + "...");
+      navigate("/dashboard"); // ✅ Skicka användaren vidare
+    } else {
+      console.error("❌ Kunde inte hämta token");
+    }
+  };
+
+  fetchToken();
+}, [navigate]);
+
 
   return <p>Loggar in...</p>;
 };
