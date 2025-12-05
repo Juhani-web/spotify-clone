@@ -80,7 +80,7 @@ const Dashboard = ({ spotifyApi }) => {
       </Box>
 
       {/* Player visas bara om token finns */}
-      {!isLoading && token && <Player spotifyApi={spotifyApi} />}
+      {!isLoading && token && <Player spotifyApi={spotifyApi} token={token} />}
     </Box>
   );
 };

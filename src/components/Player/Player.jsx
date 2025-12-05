@@ -1,144 +1,134 @@
-// src/components/Player/Player.jsx
-import { useEffect, useState } from "react";
-import { Box, Typography, IconButton } from "@mui/material";
-import { PlayArrow, Pause, SkipNext, SkipPrevious } from "@mui/icons-material";
-import { refreshAccessToken } from "../../utils/pkce.js";
+import { Box, Grid, Typography, Avatar } from '@mui/material';
+import { useEffect, useState } from 'react';
+import  PlayerControls  from '../PlayerControls/PlayerControls.jsx';
 
-const Player = ({ spotifyApi }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [track, setTrack] = useState(null);
+const Player = ({ spotifyApi, token }) => {
+	const [localPlayer, setLocalPlayer] = useState();
+	const [is_paused, setIsPaused] = useState(false);
+	const [current_track, setCurrentTrack] = useState();
+	const [device, setDevice] = useState();
+	const [duration, setDuration] = useState();
+	const [progress, setProgress] = useState();
 
-  // 🔄 Hjälpfunktion: om 401 → prova förnya token och försök igen
-  const safeSpotifyCall = async (fn) => {
-    try {
-      return await fn();
-    } catch (err) {
-      if (err.status === 401) {
-        console.warn("⚠️ Token verkar ha gått ut, försöker förnya...");
-        const newToken = await refreshAccessToken();
-        if (newToken) {
-          spotifyApi.setAccessToken(newToken);
-          console.log("✅ Ny token satt i Player");
-          return await fn();
-        }
-      }
-      console.error("❌ Fel i Spotify-anrop:", err);
-      throw err;
-    }
-  };
+	useEffect(() => {
+		const script = document.createElement('script');
+		script.src = 'https://sdk.scdn.co/spotify-player.js';
+		script.async = true;
 
-  useEffect(() => {
-    const updateTrack = async () => {
-      const trackUri = sessionStorage.getItem("currentTrackUri");
-      const contextUri = sessionStorage.getItem("currentContextUri");
+		document.body.appendChild(script);
 
-      if (!trackUri) return;
+		window.onSpotifyWebPlaybackSDKReady = () => {
+			const player = new window.Spotify.Player({
+				name: 'Juhani player',
+				getOAuthToken: (cb) => cb(token),
+				volume: 0.5
+			});
 
-      try {
-        if (contextUri) {
-          await safeSpotifyCall(() =>
-            spotifyApi.play({
-              context_uri: contextUri,
-              offset: { uri: trackUri },
-            })
-          );
-        } else {
-          await safeSpotifyCall(() => spotifyApi.play({ uris: [trackUri] }));
-        }
+			player.addListener('ready', ({ device_id }) => {
+				console.log('Ready with Device ID', device_id);
+				setDevice(device_id);
+				setLocalPlayer(player);
+			});
 
-        const trackId = trackUri.split(":").pop();
-        const data = await safeSpotifyCall(() => spotifyApi.getTrack(trackId));
-        setTrack(data);
-        setIsPlaying(true);
-      } catch (err) {
-        console.error("⚠️ Kunde inte spela upp:", err);
-      }
-    };
+			player.addListener('not_ready', ({ device_id }) => {
+				console.log('Device ID has gone offline', device_id);
+			});
 
-    updateTrack();
+			player.addListener('player_state_changed', (state) => {
+				if (!state || !state.track_window?.current_track) {
+					return;
+				}
+				console.log(state);
 
-    // lyssna på storage-event
-    const handler = () => updateTrack();
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-  }, [spotifyApi]);
+				const duration = state.track_window.current_track.duration_ms / 1000;
+				const progress = state.position / 1000;
+				setDuration(duration);
+				setProgress(progress);
+				setIsPaused(state.paused);
+				setCurrentTrack(state.track_window.current_track);
+			});
 
-  const handlePause = async () => {
-    await safeSpotifyCall(() => spotifyApi.pause());
-    setIsPlaying(false);
-  };
+			player.connect();
+		};
+	}, [token]);
 
-  const handlePlay = async () => {
-    await safeSpotifyCall(() => spotifyApi.play());
-    setIsPlaying(true);
-  };
+	useEffect(() => {
+		if (!localPlayer) return;
+		async function connect() {
+			await localPlayer.connect();
+		}
+		connect();
+		return () => {
+			localPlayer.disconnect();
+		};
+	}, [localPlayer]);
 
-  const handleNext = async () => {
-    await safeSpotifyCall(() => spotifyApi.skipToNext());
-  };
+	useEffect(() => {
+		const transferPlayback = async () => {
+			if (device) {
+				const res = await spotifyApi.getMyDevices();
+				console.log(res);
+				await spotifyApi.transferMyPlayback([], false);
+			}
+		};
 
-  const handlePrev = async () => {
-    await safeSpotifyCall(() => spotifyApi.skipToPrevious());
-  };
+		transferPlayback();
+	}, [device, spotifyApi]);
 
-  if (!track) {
-    return (
-      <Box
-        sx={{ p: 2, bgcolor: "grey.900", color: "white", textAlign: "center" }}
-      >
-        <Typography variant="body2">Ingen låt vald</Typography>
-      </Box>
-    );
-  }
+	return (
+		<Box>
+			<Grid
+				container
+				px={3}
+				sx={{
+					backgroundColor: 'background.paper',
+					height: 100,
+					width: '100%',
+					borderTop: '1px solid #292929',
+					cursor: { xs: 'pointer', md: 'auto' }
+				}}
+			>
+				<Grid xs={12} md={4} item sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+					<Avatar
+						src={current_track?.album.images[0].url}
+						alt={current_track?.album.name}
+						variant="square"
+						sx={{ width: 56, height: 56, marginRight: 2 }}
+					/>
+					<Box>
+						<Typography sx={{ color: 'text.primary', fontSize: 14 }}>{current_track?.name}</Typography>
+						<Typography sx={{ color: 'text.secondary', fontSize: 10 }}>
+							{current_track?.artists[0].name}
+						</Typography>
+					</Box>
+				</Grid>
 
-  return (
-    <Box
-      sx={{
-        p: 2,
-        bgcolor: "grey.900",
-        color: "white",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
-    >
-      {/* Låtinfo */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <img
-          src={track.album?.images?.[2]?.url || ""}
-          alt={track.name}
-          style={{ width: 48, height: 48, borderRadius: 4 }}
-        />
-        <Box>
-          <Typography variant="body1" fontWeight="bold">
-            {track.name}
-          </Typography>
-          <Typography variant="body2" color="grey.400">
-            {track.artists.map((a) => a.name).join(", ")}
-          </Typography>
-        </Box>
-      </Box>
+				<Grid
+					md={4}
+					item
+					sx={{
+						display: {
+							xs: 'none',
+							md: 'flex'
+						},
+						justifyContent: 'center',
+						alignItems: 'center'
+					}}
+				>
+					<PlayerControls
+						progress={progress}
+						is_paused={is_paused}
+						duration={duration}
+						player={localPlayer}
+					/>
+				</Grid>
 
-      {/* Kontroller */}
-      <Box>
-        <IconButton onClick={handlePrev} color="inherit">
-          <SkipPrevious />
-        </IconButton>
-        {isPlaying ? (
-          <IconButton onClick={handlePause} color="inherit">
-            <Pause />
-          </IconButton>
-        ) : (
-          <IconButton onClick={handlePlay} color="inherit">
-            <PlayArrow />
-          </IconButton>
-        )}
-        <IconButton onClick={handleNext} color="inherit">
-          <SkipNext />
-        </IconButton>
-      </Box>
-    </Box>
-  );
+				<Grid xs={6} md={4} item sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+					Volume
+				</Grid>
+			</Grid>
+		</Box>
+	);
 };
 
 export default Player;
